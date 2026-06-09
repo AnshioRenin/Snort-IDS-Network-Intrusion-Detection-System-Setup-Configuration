@@ -269,4 +269,4 @@ Type:8  Code:0  ID:12345   Seq:1  ECHO
 **Anshio Renin Micheal Antony Xavier Soosammal**
 MSc Cybersecurity | Dublin Business School | Student No: 20036753
 Module: Communications and Networking Security (B9CY103) | Lecturer: Arturo Vázquez Zepeda
-🔗 [LinkedIn](https://linkedin.com/in/anshio-renin-ms) | CC ISC2 Certified | Open to Work in Ireland
+🔗 [LinkedIn](https://linkedin.com/in/anshio-renin-ms) | Open to Work in Ireland
