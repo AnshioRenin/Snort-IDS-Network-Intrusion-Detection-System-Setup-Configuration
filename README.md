@@ -1,44 +1,41 @@
-# 🚨 Snort IDS — Network Intrusion Detection System Setup & Configuration
+# Snort IDS — Network Intrusion Detection System Setup and Configuration
 
 ![Snort](https://img.shields.io/badge/Snort-IDS-CC0000?style=for-the-badge)
 ![Kali Linux](https://img.shields.io/badge/Kali_Linux-557C94?style=for-the-badge&logo=kali-linux&logoColor=white)
 ![Network Security](https://img.shields.io/badge/Network-Security-blue?style=for-the-badge)
-![Module](https://img.shields.io/badge/Module-Communications%20%26%20Networking%20Security-orange?style=for-the-badge)
 
-> **Module:** Communications and Networking Security (B9CY103) | Dublin Business School  
-> Full setup, configuration, and testing of Snort IDS with 8 custom detection rules — successfully detecting ICMP reconnaissance, TCP port scans, SSH brute force, SQL injection attempts, and DNS zone transfer attacks in real time.
-
----
-
-## 📌 Overview
-
-This project demonstrates the complete setup and configuration of **Snort** — an open-source, rule-based Intrusion Detection System (IDS) — from directory structure creation through to live traffic monitoring and alert generation.
-
-Custom detection rules were written for 8 distinct attack types, tested against live traffic, and verified through alert log analysis. The project confirms Snort's capability as a real-time network security monitoring tool.
-
-**Alerts successfully triggered during testing:**
-- ✅ ICMP echo request detection (reconnaissance)
-- ✅ ICMP ping sweep (host discovery)
-- ✅ TCP SYN port scan detection
-- ✅ SSH brute force detection (port 22)
-- ✅ Suspicious HTTP user-agent (scanner detection)
-- ✅ SQL injection attempt (`%27` detection)
-- ✅ FTP brute force detection (port 21)
-- ✅ DNS zone transfer attempt (port 53)
+> **Module:** Communications and Networking Security (B9CY103), Dublin Business School
+> Full setup and configuration of a Snort intrusion detection system with 8 custom detection
+> rules, run against generated attack traffic with the resulting alert logs captured and analysed.
 
 ---
 
-## 🎯 Objectives
+## Overview
 
-- Configure a complete Snort IDS environment from scratch on Kali Linux
-- Write custom detection rules targeting 8 common attack patterns
-- Run Snort in live monitoring mode against a test network interface
-- Analyse generated alert logs and evaluate security implications
-- Assess Snort's strengths and limitations as a network defence tool
+Snort is an open-source, rule-based intrusion detection system. It inspects network traffic and
+raises an alert when traffic matches a pattern you have described. This project covers the
+complete build: directory structure, configuration, custom rule authoring, live monitoring, and
+analysis of the alerts produced.
+
+The emphasis of the assignment was not on running a tool but on **writing detections and then
+reasoning about what they produced**, including how to stop a noisy rule from burying a real one.
 
 ---
 
-## 🏗️ Directory Structure
+## Environment
+
+| Item | Value |
+|------|-------|
+| Platform | Kali Linux |
+| Interface monitored | `eth0` |
+| `HOME_NET` | `172.16.84.0/24` |
+| `EXTERNAL_NET` | `any` |
+| Output mode | `alert_fast` (one concise line per alert) |
+| Custom rules | 8, sid `1000001` to `1000008` |
+
+---
+
+## Directory structure
 
 ```
 /etc/snort/                    # Main configuration directory
@@ -46,227 +43,106 @@ Custom detection rules were written for 8 distinct attack types, tested against 
 ├── rules/
 │   └── local.rules            # Custom detection rules
 ├── builtin_rules/             # Snort pre-configured rules
-└── so_rules/                  # Shared object (dynamically loaded) rules
+└── so_rules/                  # Shared object rules
 
 /var/log/snort/                # Alert and packet logs
-/usr/local/lib/snort_plugins/  # Optional third-party plugins
+/usr/local/lib/snort_plugins/  # Optional plugins
 ```
 
-### Setup Commands
-
-```bash
-# Create all required directories
-sudo mkdir -p /etc/snort
-sudo mkdir -p /etc/snort/rules
-sudo mkdir -p /etc/snort/builtin_rules
-sudo mkdir -p /etc/snort/so_rules
-sudo mkdir -p /var/log/snort
-sudo mkdir -p /usr/local/lib/snort_plugins
-```
+Permissions were set deliberately rather than left open, with `750` applied recursively to the
+configuration, log and plugin directories.
 
 ---
 
-## ⚙️ Configuration
-
-### snort.conf (Key Settings)
-
-```bash
-sudo nano /etc/snort/snort.conf
-```
+## Configuration
 
 ```lua
--- Network scope
-HOME_NET = "10.0.2.0/24"      -- Internal network to monitor
-EXTERNAL_NET = "any"           -- All external traffic analysed
-
--- Enable all rules by default
-ips = {
-    enable_builtin_rules = true,
-    rules = local_rules
+static_networks = {
+  home_net     = "172.16.84.0/24",
+  external_net = "any"
 }
 
--- Alert output format
-outputs = {
-    alert_fast = {
-        enabled = true,
-        file = true,
-        packet = true
-    }
+detection = {
+  global_default_rule_state = true
 }
 
--- Include custom rules file
-include = '/etc/snort/rules/local.rules'
+include = "rules/local.rules"
 ```
 
----
-
-## 📋 Custom Rules (local.rules)
-
-8 custom rules written to detect common attack patterns:
+The configuration was validated before going live:
 
 ```bash
-sudo nano /etc/snort/rules/local.rules
-```
-
-### Rule 1 — ICMP Echo Request Detection
-Alerts on any ICMP ping to the home network — indicates reconnaissance activity.
-```
-alert icmp any any -> $HOME_NET any (msg:"ICMP Test"; sid:1000001; rev:1;)
-```
-
-### Rule 2 — ICMP Ping Sweep
-Detects multiple ICMP requests from the same source within 1 second — host discovery scanning.
-```
-alert icmp any any -> any any (msg:"ICMP Ping Sweep"; detection_filter:track by_src, count 5, seconds 1; sid:1000002; rev:1;)
-```
-
-### Rule 3 — TCP Port Scan
-Flags multiple SYN packets from the same source — classic port scan behaviour.
-```
-alert tcp any any -> any any (msg:"Potential TCP Port Scan"; flags:S; detection_filter:track by_src, count 5, seconds 2; sid:1000003; rev:1;)
-```
-
-### Rule 4 — SSH Brute Force
-Detects rapid repeated connection attempts to port 22 — automated brute force attacks.
-```
-alert tcp any any -> any 22 (msg:"Potential SSH Brute Force"; flags:S; flow:stateless; detection_filter:track by_src, count 5, seconds 10; sid:1000004; rev:1;)
-```
-
-### Rule 5 — Suspicious HTTP User-Agent
-Alerts on HTTP requests from known scanner user-agent strings (Nmap, Spider, Proxy, Scan).
-```
-alert tcp any any -> any 80 (msg:"Suspicious User Agent - Possible Scanner"; flow:established,to_server; content:"User-Agent|3A| "; http_header; pcre:"/(?:Scan|Proxy|Spider|Nmap)/i"; sid:1000005; rev:1;)
-```
-
-### Rule 6 — SQL Injection Attempt
-Detects `%27` (URL-encoded single quote) in HTTP requests — common SQL injection indicator.
-```
-alert tcp any any -> any any (msg:"SQL Injection Attempt"; flow:to_server,established; content:"%27"; sid:1000006; rev:1;)
-```
-
-### Rule 7 — FTP Brute Force
-Monitors multiple login attempts to port 21 — brute force against FTP services.
-```
-alert tcp any any -> any 21 (msg:"FTP Brute Force Attempt"; flow:established,to_server; detection_filter:track by_src, count 5, seconds 10; sid:1000007; rev:1;)
-```
-
-### Rule 8 — DNS Zone Transfer Attempt
-Detects unauthorized DNS AXFR zone transfer requests — can expose full internal DNS structure.
-```
-alert tcp any any -> $HOME_NET 53 (msg:"DNS Zone Transfer Attempt"; flow:established,to_server; content:"|00 00 FC|"; offset:12; depth:3; sid:1000008; rev:1;)
+sudo snort -T -c /etc/snort/snort.conf -i eth0        # test configuration
+sudo snort -c /etc/snort/snort.conf -i eth0 -A alert_fast   # run
 ```
 
 ---
 
-## 🔒 File Permissions
+## The eight custom rules
 
-Secure permissions applied to all Snort directories:
+| sid | Detection | Technique |
+|-----|-----------|-----------|
+| 1000001 | ICMP echo request to the home network | Reconnaissance |
+| 1000002 | ICMP ping sweep | Host discovery, threshold-based |
+| 1000003 | TCP SYN port scan | Service discovery, threshold-based |
+| 1000004 | SSH brute force on port 22 | Credential access, threshold-based |
+| 1000005 | Scanner user-agent over HTTP | Automated tooling, `pcre` match |
+| 1000006 | SQL injection attempt (`%27`) | Injection |
+| 1000007 | FTP brute force on port 21 | Credential access, threshold-based |
+| 1000008 | DNS zone transfer request on port 53 | Information disclosure, byte match |
 
-```bash
-# Allow Snort to write logs (read/write for all)
-sudo chmod 666 /var/log/snort
+Two rules worth reading closely:
 
-# Restrict config, logs, and plugins — root only (read/write/execute)
-# Group members: read and execute | Others: no access
-sudo chmod -R 750 /etc/snort
-sudo chmod -R 750 /var/log/snort
-sudo chmod -R 750 /usr/local/lib/snort_plugins
+```
+alert tcp any any -> $HOME_NET 22 (msg:"Potential SSH Brute Force"; flags:S; flow:stateless;
+  detection_filter:track by_src, count 5, seconds 10; sid:1000004; rev:1;)
+
+alert tcp any any -> $HOME_NET 53 (msg:"DNS Zone Transfer Attempt"; flow:established,to_server;
+  content:"|00 00 FC|"; offset:12; depth:3; sid:1000008; rev:1;)
 ```
 
----
-
-## 🚀 Running Snort
-
-### Step 1 — Test Configuration (no live capture)
-```bash
-sudo snort -T -c /etc/snort/snort.conf -i eth0
-```
-Validates `snort.conf` syntax and rule loading without starting live monitoring. Fix any errors shown before proceeding.
-
-### Step 2 — Live Monitoring Mode
-```bash
-sudo snort -c /etc/snort/snort.conf -i eth0 -A alert_fast
-```
-Starts Snort in live mode on the `eth0` interface, outputting alerts in `alert_fast` format — a quick summary of each detected event.
+The zone transfer rule matches the specific bytes identifying an AXFR query. A zone transfer that
+is not restricted to authorised servers hands an attacker a complete map of internal hostnames in
+a single request.
 
 ---
 
-## 🚨 Alerts Generated During Testing
+## False positive reduction
 
-All 5 core alert types were successfully triggered and logged:
-
-| Alert | Source | Description |
-|-------|--------|-------------|
-| **ICMP Test** | 192.168.1.10 → internal | ICMP echo request detected — possible reconnaissance |
-| **ICMP Ping Sweep** | Single source → multiple hosts | Multiple ICMP packets within seconds — host discovery scan |
-| **TCP Port Scan** | External → 10.0.2.10 | Multiple SYN packets to multiple ports — service discovery |
-| **SSH Brute Force** | External → port 22 | Repeated failed logins — automated credential attack |
-| **Suspicious User Agent** | HTTP request | Scanner/bot user-agent string detected in HTTP header |
-
-### Sample Alert Log Format (alert_fast)
-```
-[**] [1:1000001:1] ICMP Test [**]
-[Priority: 0]
-04/22-14:32:11.123456 192.168.1.10 -> 10.0.2.5
-ICMP TTL:64 TOS:0x0 ID:1234 IpLen:20 DgmLen:84
-Type:8  Code:0  ID:12345   Seq:1  ECHO
-```
+Four of the eight rules use `detection_filter`, which suppresses an alert until the same source
+crosses a count within a time window. Without it, a single ping produces an alert and an analyst
+drowns in noise. Tuning thresholds so that real signal is not buried is the daily reality of
+detection work, and it was a deliberate part of the design rather than an afterthought.
 
 ---
 
-## 🔐 Security Implications
+## Results
 
-| Alert Type | Security Risk | Severity |
-|-----------|--------------|----------|
-| ICMP flood / ping sweep | DoS or reconnaissance — mapping live hosts | 🟠 High |
-| TCP SYN flood | DoS/DDoS — exhausting server resources | 🔴 Critical |
-| SSH/FTP brute force | Credential compromise — unauthorized access | 🔴 Critical |
-| SQL injection | Database manipulation — data theft | 🔴 Critical |
-| DNS zone transfer | Network topology disclosure — enabling future attacks | 🟠 High |
+Alerts were generated by producing attack traffic against the monitored interface and confirmed
+in the logs, with supporting screenshots in the report. Alert evidence is documented for:
 
----
+- ICMP echo detection
+- ICMP ping sweep
+- TCP SYN port scan
+- SSH brute force
+- Suspicious HTTP user-agent
 
-## 📊 Security Analysis
-
-**Strengths of this Snort configuration:**
-- `detection_filter:track by_src` reduces false positives by requiring threshold counts before alerting
-- Custom rules target specific attack patterns relevant to the monitored network
-- Covers both network layer (ICMP, TCP) and application layer (HTTP, SSH, DNS, FTP) threats
-
-**Limitations:**
-- Rule-based detection cannot identify zero-day attacks or novel APT techniques
-- Requires regular rule updates to stay current with new threat patterns
-- Operates as IDS only (detection and alerting) — not IPS (active blocking)
-
-**Recommendations:**
-- Integrate Snort with Talos Intelligence threat feeds for rule updates
-- Combine with a firewall or IPS (e.g. Suricata) for active blocking capability
-- Add SIEM integration (e.g. Splunk, ELK) for centralised log analysis
+The report also covers the security implications of each detection and assesses where
+signature-based detection stops being useful.
 
 ---
 
-## 🔧 Tools & Environment
+## Limitations, stated honestly
 
-| Tool | Purpose |
-|------|---------|
-| Snort (open-source) | Network IDS — real-time traffic monitoring and alerting |
-| Kali Linux | Testing environment |
-| Nano | Configuration file editing |
-| eth0 interface | Network interface monitored |
-
----
-
-## 📚 References
-
-- Snort Documentation — https://www.snort.org/documentation
-- Talos Intelligence (Snort rule feeds) — https://talosintelligence.com/
-- SANS Institute — https://www.sans.org/
+Snort is signature based. It detects patterns it has been told about, which means novel or
+obfuscated attacks pass unnoticed. Detection is also not prevention: an IDS reports, it does not
+block. In any real deployment this belongs alongside firewalls, an IPS and threat intelligence
+rather than on its own. The environment here was a controlled lab with traffic that was generated
+deliberately, not production traffic.
 
 ---
 
-## 👤 Author
+## Repository contents
 
-**Anshio Renin Micheal Antony Xavier Soosammal**
-MSc Cybersecurity | Dublin Business School 
-Module: Communications and Networking Security (B9CY103) | Lecturer: Arturo Vázquez Zepeda
-🔗 [LinkedIn](https://linkedin.com/in/anshio-renin-ms) | Open to Work in Ireland
+- `docs/` — the full assignment report, including configuration and alert screenshots
+- `local.rules` — the eight custom detection rules as deployed
