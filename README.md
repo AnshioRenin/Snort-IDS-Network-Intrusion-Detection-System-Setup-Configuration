@@ -28,7 +28,7 @@ reasoning about what they produced**, including how to stop a noisy rule from bu
 |------|-------|
 | Platform | Kali Linux |
 | Interface monitored | `eth0` |
-| `HOME_NET` | `172.16.84.0/24` |
+| `HOME_NET` | `10.0.2.0/24` |
 | `EXTERNAL_NET` | `any` |
 | Output mode | `alert_fast` (one concise line per alert) |
 | Custom rules | 8, sid `1000001` to `1000008` |
@@ -58,7 +58,7 @@ configuration, log and plugin directories.
 
 ```lua
 static_networks = {
-  home_net     = "172.16.84.0/24",
+  home_net     = "10.0.2.0/24",
   external_net = "any"
 }
 
@@ -139,6 +139,25 @@ obfuscated attacks pass unnoticed. Detection is also not prevention: an IDS repo
 block. In any real deployment this belongs alongside firewalls, an IPS and threat intelligence
 rather than on its own. The environment here was a controlled lab with traffic that was generated
 deliberately, not production traffic.
+
+---
+
+
+## Screenshots
+
+The 8 custom detection rules are in [](config/local.rules).
+
+Selected screenshots captured during the assessment. The full walkthrough with every screenshot is in the report under .
+
+![Screenshot 1](screenshots/screenshot-01.png)
+
+![Screenshot 2](screenshots/screenshot-02.png)
+
+![Screenshot 3](screenshots/screenshot-03.png)
+
+![Screenshot 4](screenshots/screenshot-04.png)
+
+*The remaining 4 screenshots are in the  folder.*
 
 ---
 
